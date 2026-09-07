@@ -4,11 +4,16 @@
   --radius: 4px;
   --radius-lg: 10px;
 
+  /* Notes:
+  - Although we're keeping the hue, the landed hue will be different since some hues are unrepresentable given the current light (L).
+  - Accent's saturation is ~56%, so we can build a saturation ladder down for the other colors.
+  - Light values are calculated backwards based on the contrast we're looking for (I've tried to use clean numbers, but it's impossible).
+  */
   --accent: #ccdf8d;
-  --bg: #14160f;
-  --text: #e8ead9;
-  --key-outline: color-mix(in srgb, var(--accent) 35%, transparent);
-  --key-border: #3a3f33;
+  --bg: hsl(from var(--accent) h calc(s / 3) 7%);
+  --text: hsl(from var(--accent) h calc(s / 2) 85%);
+  --key-border: hsl(from var(--accent) h calc(s / 5) 20%);
+  --input-border: color-mix(in srgb, var(--accent) 35%, transparent);
   --accent-glow: color-mix(in srgb, var(--accent) 50%, transparent);
 
   --font-sans:
@@ -50,7 +55,7 @@ body {
   color: var(--text);
   outline: none;
   background-color: var(--bg);
-  border: 1px solid var(--key-outline);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius);
 }
 

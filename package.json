@@ -1,9 +1,11 @@
 {
   "scripts": {
-    "check": "biome check --write ."
+    "check": "biome check --write .",
+    "lint": "oxlint --fix"
   },
   "dependencies": {},
   "devDependencies": {
-    "@biomejs/biome": "2.5.12"
+    "@biomejs/biome": "2.5.12",
+    "oxlint": "^1.81.0"
   }
 }
