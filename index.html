@@ -8,7 +8,15 @@
     </head>
     <body>
         <div id="container">
-            <input id="input" />
+            <div id="field">
+                <label class="toggle" title="Toggle Korean input override">
+                    <input type="checkbox" id="ime-toggle" checked />
+                    <span class="track"><span class="thumb"></span></span>
+                    <span class="toggle-label">한글 입력</span>
+                </label>
+                <!-- biome-ignore lint/a11y/useSemanticElements: <input> can't style the sub-range; we need contenteditable for the IME underline. -->
+                <div id="input" contenteditable="true" role="textbox" tabindex="0" aria-multiline="false" aria-label="Korean input" spellcheck="false"></div>
+            </div>
             <div id="keyboard"></div>
         </div>
     </body>

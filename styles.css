@@ -46,17 +46,80 @@ body {
   align-items: center;
 }
 
-#input {
+#field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   width: 50%;
+}
+
+.toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  align-self: flex-end;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.toggle .track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  background-color: var(--key-border);
+  border-radius: 999px;
+  transition: background-color 120ms ease;
+}
+
+.toggle .thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background-color: var(--text);
+  border-radius: 50%;
+  transition: transform 100ms ease;
+}
+
+.toggle input:checked + .track {
+  background-color: var(--accent);
+}
+
+.toggle input:checked + .track .thumb {
+  background-color: var(--bg);
+  transform: translateX(14px);
+}
+
+#input {
+  width: 100%;
   height: 40px;
   padding: 6px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
   font-family: var(--font-sans);
   font-size: var(--font-size);
+  line-height: 28px;
   color: var(--text);
+  white-space: nowrap;
+  cursor: text;
   outline: none;
+  scrollbar-width: none;
   background-color: var(--bg);
   border: 1px solid var(--input-border);
   border-radius: var(--radius);
+}
+
+#input::-webkit-scrollbar {
+  display: none;
 }
 
 #input:focus {

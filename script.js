@@ -88,7 +88,28 @@ const KEYBOARD = [
 
 const KEYBOARD_DIV_ID = "keyboard";
 const INPUT_ID = "input";
+const IME_TOGGLE_ID = "ime-toggle";
 const keyByCode = {};
+let inputEl = null;
+let imeEnabled = true;
+
+// Checks if the character is in the Hangul Compatibility Jamo Unicode block.
+function isJamo(label) {
+  if (label.length !== 1) return false;
+  const cp = label.codePointAt(0);
+  return cp >= 0x3130 && cp <= 0x318f;
+}
+
+const jamoByCode = {};
+for (const row of KEYBOARD) {
+  for (const keyData of row) {
+    if (!isJamo(keyData.label)) continue;
+    jamoByCode[keyData.code] = {
+      base: keyData.label,
+      shift: keyData.shift ?? keyData.label,
+    };
+  }
+}
 
 function createKeyboard() {
   const root = document.getElementById(KEYBOARD_DIV_ID);
@@ -162,12 +183,29 @@ function resetKeyboard() {
   setShiftLabels(false);
 }
 
+function insertJamo(jamo) {
+  if (document.activeElement !== inputEl) inputEl.focus();
+  document.execCommand("insertText", false, jamo);
+}
+
 function addListeners() {
   window.addEventListener("keydown", (event) => {
     if (IGNORE_KEYS.has(event.code)) return;
     const key = keyByCode[event.code];
     if (key) key.classList.add("active");
     if (SHIFT_KEYS.has(event.code)) setShiftLabels(true);
+
+    const jamo = jamoByCode[event.code];
+    if (
+      imeEnabled &&
+      jamo &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      insertJamo(event.shiftKey ? jamo.shift : jamo.base);
+    }
   });
 
   window.addEventListener("keyup", (event) => {
@@ -188,11 +226,22 @@ function addListeners() {
 }
 
 function prepareInput() {
-  const input = document.getElementById(INPUT_ID);
-  input.value = "";
-  input.focus();
+  inputEl = document.getElementById(INPUT_ID);
+  inputEl.textContent = "";
+  inputEl.focus();
+}
+
+function prepareToggle() {
+  const toggle = document.getElementById(IME_TOGGLE_ID);
+  toggle.checked = true;
+  imeEnabled = toggle.checked;
+  toggle.addEventListener("change", () => {
+    imeEnabled = toggle.checked;
+    inputEl.focus();
+  });
 }
 
 createKeyboard();
 addListeners();
 prepareInput();
+prepareToggle();
