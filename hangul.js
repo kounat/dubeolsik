@@ -92,6 +92,48 @@ export const CHO_INDEX = indexMap(CHOSEONG);
 export const JUNG_INDEX = indexMap(JUNGSEONG);
 export const JONG_INDEX = indexMap(JONGSEONG);
 
+// Compound vowels (이중모음): [base, added, combined] as JUNGSEONG indices.
+const JUNG_COMPOUNDS = [
+  [8, 0, 9], // ㅗ + ㅏ → ㅘ
+  [8, 1, 10], // ㅗ + ㅐ → ㅙ
+  [8, 20, 11], // ㅗ + ㅣ → ㅚ
+  [13, 4, 14], // ㅜ + ㅓ → ㅝ
+  [13, 5, 15], // ㅜ + ㅔ → ㅞ
+  [13, 20, 16], // ㅜ + ㅣ → ㅟ
+  [18, 20, 19], // ㅡ + ㅣ → ㅢ
+];
+
+// Compound finals (겹받침): [base, added, combined] as JONGSEONG indices.
+const JONG_COMPOUNDS = [
+  [1, 19, 3], // ㄱ + ㅅ → ㄳ
+  [4, 22, 5], // ㄴ + ㅈ → ㄵ
+  [4, 27, 6], // ㄴ + ㅎ → ㄶ
+  [8, 1, 9], // ㄹ + ㄱ → ㄺ
+  [8, 16, 10], // ㄹ + ㅁ → ㄻ
+  [8, 17, 11], // ㄹ + ㅂ → ㄼ
+  [8, 19, 12], // ㄹ + ㅅ → ㄽ
+  [8, 25, 13], // ㄹ + ㅌ → ㄾ
+  [8, 26, 14], // ㄹ + ㅍ → ㄿ
+  [8, 27, 15], // ㄹ + ㅎ → ㅀ
+  [17, 19, 18], // ㅂ + ㅅ → ㅄ
+];
+
+function composeMap(compounds) {
+  const map = {};
+  for (const [a, b, c] of compounds) map[`${a},${b}`] = c;
+  return map;
+}
+
+function splitMap(compounds) {
+  const map = {};
+  for (const [a, b, c] of compounds) map[c] = [a, b];
+  return map;
+}
+
+const JUNG_COMPOSE = composeMap(JUNG_COMPOUNDS);
+const JONG_COMPOSE = composeMap(JONG_COMPOUNDS);
+const JONG_SPLIT = splitMap(JONG_COMPOUNDS);
+
 const SYLLABLE_BASE = 0xac00; // 가
 const N_JUNG = JUNGSEONG.length; // 21
 const N_JONG = JONGSEONG.length; // 28
@@ -146,15 +188,30 @@ export function step(state, jamo) {
 
   // A vowel.
   if (asJung !== null) {
-    if (cho !== null && jung === null) {
-      // Leading consonant was waiting for its vowel: 가 forms.
+    if (jung === null) {
+      // No vowel yet: it attaches to the (possibly empty) block — 가 forms, or
+      // the vowel stands alone when there's no leading consonant.
       return { committed: "", state: block(cho, asJung, null) };
     }
-    if (cho === null && jung === null) {
-      // Empty block: the vowel stands by itself.
-      return { committed: "", state: block(null, asJung, null) };
+    if (jong !== null) {
+      // Full block + vowel: the final migrates to lead the next block. A
+      // compound final splits — its first half stays, its second half leaves.
+      // 각 + ㅏ → 가 + 가; 앉 + ㅏ → 안 + 자.
+      const split = JONG_SPLIT[jong];
+      const keptJong = split ? split[0] : 0;
+      const movedJong = split ? split[1] : jong;
+      const migratedCho = CHO_INDEX[JONGSEONG[movedJong]];
+      return {
+        committed: compose(cho, jung, keptJong),
+        state: block(migratedCho, asJung, null),
+      };
     }
-    // The block already has a vowel: commit and start the vowel fresh.
+    // cho+jung with no final (or a lone vowel) + another vowel: fuse into a
+    // compound vowel (ㅗ + ㅏ → ㅘ) if valid, else commit and start fresh.
+    const combined = JUNG_COMPOSE[`${jung},${asJung}`];
+    if (combined !== undefined) {
+      return { committed: "", state: block(cho, combined, null) };
+    }
     return { committed: filled, state: block(null, asJung, null) };
   }
 
@@ -171,7 +228,14 @@ export function step(state, jamo) {
     // cho+jung waiting for a final, and this consonant is a valid one: 각 / 간.
     return { committed: "", state: block(cho, jung, asJong) };
   }
-  // The block already has a final, the consonant can't be one (ㄸㅃㅉ), or the
-  // block is a lone vowel: commit and begin a new block.
+  if (cho !== null && jung !== null && jong !== null && asJong !== null) {
+    // A single final sits there; try to fuse a compound final: 앉 / 밟.
+    const combined = JONG_COMPOSE[`${jong},${asJong}`];
+    if (combined !== undefined) {
+      return { committed: "", state: block(cho, jung, combined) };
+    }
+  }
+  // The block already has a final that can't extend, the consonant can't be one
+  // (ㄸㅃㅉ), or the block is a lone vowel: commit and begin a new block.
   return { committed: filled, state: block(asCho, null, null) };
 }
