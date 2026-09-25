@@ -132,6 +132,7 @@ function splitMap(compounds) {
 
 const JUNG_COMPOSE = composeMap(JUNG_COMPOUNDS);
 const JONG_COMPOSE = composeMap(JONG_COMPOUNDS);
+const JUNG_SPLIT = splitMap(JUNG_COMPOUNDS);
 const JONG_SPLIT = splitMap(JONG_COMPOUNDS);
 
 const SYLLABLE_BASE = 0xac00; // 가
@@ -238,4 +239,26 @@ export function step(state, jamo) {
   // The block already has a final that can't extend, the consonant can't be one
   // (ㄸㅃㅉ), or the block is a lone vowel: commit and begin a new block.
   return { committed: filled, state: block(asCho, null, null) };
+}
+
+export function backspace(state) {
+  const { cho, jung, jong } = state;
+  if (jong !== null) {
+    const split = JONG_SPLIT[jong];
+    return {
+      state: block(cho, jung, split ? split[0] : null),
+      deletedCommitted: false,
+    };
+  }
+  if (jung !== null) {
+    const split = JUNG_SPLIT[jung];
+    return {
+      state: block(cho, split ? split[0] : null, null),
+      deletedCommitted: false,
+    };
+  }
+  if (cho !== null) {
+    return { state: EMPTY, deletedCommitted: false };
+  }
+  return { state: EMPTY, deletedCommitted: true };
 }

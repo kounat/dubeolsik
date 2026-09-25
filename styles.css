@@ -107,13 +107,11 @@ body {
   overflow-y: hidden;
   font-family: var(--font-sans);
   font-size: var(--font-size);
-  /* Match the content box (40px − 12px padding − 2px border) so the single line
-     fills it and sits centered — otherwise it's pinned to the top and the
-     composing underline hangs into the clipped space below. */
   line-height: 26px;
   color: var(--text);
   white-space: nowrap;
   cursor: text;
+  caret-color: transparent;
   outline: none;
   scrollbar-width: none;
   background-color: var(--bg);
@@ -133,6 +131,20 @@ body {
 .composing {
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.caret {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  margin-top: 3px;
+  vertical-align: top;
+  user-select: none;
+  background-color: var(--text);
+}
+
+#input:not(:focus) .caret {
+  display: none;
 }
 
 #keyboard {

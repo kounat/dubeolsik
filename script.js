@@ -1,4 +1,4 @@
-import { EMPTY, render, step } from "./hangul.js";
+import { backspace, EMPTY, render, step } from "./hangul.js";
 
 // 60% ANSI keyboard - 두벌식 reference.
 //
@@ -97,6 +97,7 @@ let imeEnabled = true;
 
 let committedNode = null;
 let composingSpan = null;
+let caretEl = null;
 let block = EMPTY;
 
 // Checks if the character is in the Hangul Compatibility Jamo Unicode block.
@@ -207,6 +208,27 @@ function insertJamo(jamo) {
   caretToEnd();
 }
 
+function insertLiteral(ch) {
+  if (document.activeElement !== inputEl) inputEl.focus();
+  committedNode.textContent += render(block) + ch;
+  composingSpan.textContent = "";
+  block = EMPTY;
+  caretToEnd();
+}
+
+function deleteBlock() {
+  if (document.activeElement !== inputEl) inputEl.focus();
+  const { state, deletedCommitted } = backspace(block);
+  if (deletedCommitted) {
+    const chars = [...committedNode.textContent];
+    chars.pop();
+    committedNode.textContent = chars.join("");
+  }
+  block = state;
+  composingSpan.textContent = render(block);
+  caretToEnd();
+}
+
 function commitBlock() {
   const text = render(block);
   if (text) committedNode.textContent += text;
@@ -228,16 +250,30 @@ function addListeners() {
       return;
     }
 
-    const jamo = jamoByCode[event.code];
     if (
-      imeEnabled &&
-      jamo &&
+      event.code === "Backspace" &&
       !event.metaKey &&
       !event.ctrlKey &&
       !event.altKey
     ) {
       event.preventDefault();
-      insertJamo(event.shiftKey ? jamo.shift : jamo.base);
+      deleteBlock();
+      return;
+    }
+
+    if (
+      event.key.length === 1 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      const jamo = imeEnabled ? jamoByCode[event.code] : null;
+      if (jamo) {
+        insertJamo(event.shiftKey ? jamo.shift : jamo.base);
+      } else {
+        insertLiteral(event.key);
+      }
     }
   });
 
@@ -264,7 +300,10 @@ function prepareInput() {
   committedNode = document.createTextNode("");
   composingSpan = document.createElement("span");
   composingSpan.className = "composing";
-  inputEl.append(committedNode, composingSpan);
+  caretEl = document.createElement("span");
+  caretEl.className = "caret";
+  caretEl.contentEditable = "false";
+  inputEl.append(committedNode, composingSpan, caretEl);
   block = EMPTY;
   inputEl.focus();
 }
