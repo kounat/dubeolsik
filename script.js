@@ -1,3 +1,5 @@
+import { EMPTY, render, step } from "./hangul.js";
+
 // 60% ANSI keyboard - 두벌식 reference.
 //
 // code  - KeyboardEvent.code, defined in https://www.w3.org/TR/uievents-code/#key-alphanumeric-section
@@ -93,6 +95,10 @@ const keyByCode = {};
 let inputEl = null;
 let imeEnabled = true;
 
+let committedNode = null;
+let composingSpan = null;
+let block = EMPTY;
+
 // Checks if the character is in the Hangul Compatibility Jamo Unicode block.
 function isJamo(label) {
   if (label.length !== 1) return false;
@@ -183,9 +189,30 @@ function resetKeyboard() {
   setShiftLabels(false);
 }
 
+function caretToEnd() {
+  const range = document.createRange();
+  range.selectNodeContents(inputEl);
+  range.collapse(false);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function insertJamo(jamo) {
   if (document.activeElement !== inputEl) inputEl.focus();
-  document.execCommand("insertText", false, jamo);
+  const { committed, state } = step(block, jamo);
+  if (committed) committedNode.textContent += committed;
+  block = state;
+  composingSpan.textContent = render(block);
+  caretToEnd();
+}
+
+function commitBlock() {
+  const text = render(block);
+  if (text) committedNode.textContent += text;
+  composingSpan.textContent = "";
+  block = EMPTY;
+  if (document.activeElement === inputEl) caretToEnd();
 }
 
 function addListeners() {
@@ -194,6 +221,12 @@ function addListeners() {
     const key = keyByCode[event.code];
     if (key) key.classList.add("active");
     if (SHIFT_KEYS.has(event.code)) setShiftLabels(true);
+
+    if (event.code === "Enter") {
+      event.preventDefault();
+      commitBlock();
+      return;
+    }
 
     const jamo = jamoByCode[event.code];
     if (
@@ -228,6 +261,11 @@ function addListeners() {
 function prepareInput() {
   inputEl = document.getElementById(INPUT_ID);
   inputEl.textContent = "";
+  committedNode = document.createTextNode("");
+  composingSpan = document.createElement("span");
+  composingSpan.className = "composing";
+  inputEl.append(committedNode, composingSpan);
+  block = EMPTY;
   inputEl.focus();
 }
 

@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "serve": "bun serve.js",
     "check": "biome check --write .",
     "lint": "oxlint --fix"
   },

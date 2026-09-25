@@ -107,7 +107,10 @@ body {
   overflow-y: hidden;
   font-family: var(--font-sans);
   font-size: var(--font-size);
-  line-height: 28px;
+  /* Match the content box (40px − 12px padding − 2px border) so the single line
+     fills it and sits centered — otherwise it's pinned to the top and the
+     composing underline hangs into the clipped space below. */
+  line-height: 26px;
   color: var(--text);
   white-space: nowrap;
   cursor: text;
@@ -125,6 +128,11 @@ body {
 #input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent-glow);
+}
+
+.composing {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 #keyboard {
