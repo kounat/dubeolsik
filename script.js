@@ -192,11 +192,11 @@ function resetKeyboard() {
 
 function caretToEnd() {
   const range = document.createRange();
-  range.selectNodeContents(inputEl);
-  range.collapse(false);
+  range.setStart(committedNode, committedNode.length);
   const selection = window.getSelection();
   selection.removeAllRanges();
   selection.addRange(range);
+  inputEl.scrollLeft = inputEl.scrollWidth;
   restartCaretBlink();
 }
 
@@ -270,12 +270,26 @@ function commitBlock() {
   if (document.activeElement === inputEl) caretToEnd();
 }
 
+function syncFromDOM() {
+  committedNode.textContent = inputEl.textContent;
+  composingSpan.textContent = "";
+  block = EMPTY;
+  inputEl.replaceChildren(committedNode, composingSpan, caretEl);
+  if (document.activeElement === inputEl) caretToEnd();
+}
+
 function addListeners() {
   window.addEventListener("keydown", (event) => {
     if (IGNORE_KEYS.has(event.code)) return;
     const key = keyByCode[event.code];
     if (key) key.classList.add("active");
     if (SHIFT_KEYS.has(event.code)) setShiftLabels(true);
+
+    // event.keyCode is deprecated, but there's no alternative.
+    if (event.isComposing || event.keyCode === 229) {
+      if (!event.isComposing) commitBlock();
+      return;
+    }
 
     if (event.code === "Enter") {
       event.preventDefault();
@@ -348,6 +362,12 @@ function prepareInput() {
   inputEl.append(committedNode, composingSpan, caretEl);
   block = EMPTY;
   inputEl.addEventListener("blur", commitBlock);
+  // Our own edits never fire `input`, so any that arrives is the browser editing natively (system IME, paste, cut, Option-combos).
+  // Wait for a composition before syncing.
+  inputEl.addEventListener("input", (event) => {
+    if (!event.isComposing) syncFromDOM();
+  });
+  inputEl.addEventListener("compositionend", syncFromDOM);
   document.addEventListener("selectionchange", () => {
     inputEl.classList.toggle("selecting", !window.getSelection().isCollapsed);
   });
