@@ -141,10 +141,27 @@ body {
   vertical-align: top;
   user-select: none;
   background-color: var(--text);
+  animation: blink 1.06s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret {
+    animation: none;
+  }
 }
 
 #input:not(:focus) .caret {
   display: none;
+}
+
+#input.selecting .caret {
+  visibility: hidden;
 }
 
 #keyboard {

@@ -197,6 +197,39 @@ function caretToEnd() {
   const selection = window.getSelection();
   selection.removeAllRanges();
   selection.addRange(range);
+  restartCaretBlink();
+}
+
+function restartCaretBlink() {
+  for (const animation of caretEl.getAnimations()) animation.currentTime = 0;
+}
+
+function textOffset(node, offset) {
+  const range = document.createRange();
+  range.setStart(inputEl, 0);
+  range.setEnd(node, offset);
+  return range.toString().length;
+}
+
+function deleteSelection() {
+  const selection = window.getSelection();
+  if (selection.rangeCount === 0 || selection.isCollapsed) return false;
+  const range = selection.getRangeAt(0);
+  if (!inputEl.contains(range.commonAncestorContainer)) return false;
+
+  const start = textOffset(range.startContainer, range.startOffset);
+  const end = textOffset(range.endContainer, range.endOffset);
+  const committed = committedNode.textContent;
+  if (end <= committed.length) {
+    committedNode.textContent =
+      committed.slice(0, start) + committed.slice(end);
+  } else {
+    committedNode.textContent = committed.slice(0, start);
+    composingSpan.textContent = "";
+    block = EMPTY;
+  }
+  caretToEnd();
+  return true;
 }
 
 function insertJamo(jamo) {
@@ -251,6 +284,14 @@ function addListeners() {
     }
 
     if (
+      (event.code === "Backspace" || event.code === "Delete") &&
+      deleteSelection()
+    ) {
+      event.preventDefault();
+      return;
+    }
+
+    if (
       event.code === "Backspace" &&
       !event.metaKey &&
       !event.ctrlKey &&
@@ -268,6 +309,7 @@ function addListeners() {
       !event.altKey
     ) {
       event.preventDefault();
+      deleteSelection();
       const jamo = imeEnabled ? jamoByCode[event.code] : null;
       if (jamo) {
         insertJamo(event.shiftKey ? jamo.shift : jamo.base);
@@ -305,6 +347,10 @@ function prepareInput() {
   caretEl.contentEditable = "false";
   inputEl.append(committedNode, composingSpan, caretEl);
   block = EMPTY;
+  inputEl.addEventListener("blur", commitBlock);
+  document.addEventListener("selectionchange", () => {
+    inputEl.classList.toggle("selecting", !window.getSelection().isCollapsed);
+  });
   inputEl.focus();
 }
 
