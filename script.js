@@ -29,6 +29,9 @@ const NAVIGATION_KEYS = new Set([
 ]);
 let imeEnabled = true;
 
+// We handle every printable key plus Backspace/Delete/arrows so the field state and custom caret stay in sync (rather than letting the browser handle it natively).
+// Anything we let through (e.g., System IME) is folded back in by `syncFromDOM` in field.js.
+// This listens on `window`, so Backspace with focus elsewhere still edits the field.
 function addInputListeners() {
   window.addEventListener("keydown", (event) => {
     if (IGNORE_KEYS.has(event.code)) return;

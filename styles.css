@@ -135,6 +135,9 @@ body {
 }
 
 /* The caret.
+- Custom because the native caret's height jumps between fonts. i.e., Apple SD Gothic Neo for Korean vs. the SF font for English.
+  - On initial page load, the native caret would sit way higher than expected, presumably because of the above?
+  - Also on Firefox, I noticed it can also switch to a thicker, accent-colored style...?
 - Absolutely positioned so it's out of the text flow.
 - `top` is against #input, centering it in the 26px line box (6px padding + 3px).
 */

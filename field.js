@@ -1,5 +1,9 @@
 import { backspace, EMPTY, render, step } from "./hangul.js";
 
+// The field is always `beforeNode - composingSpan - afterNode`, and the insertion point is always right after the composing block.
+// The caret is drawn by `.composing::after` (see styles.css), so it follows the block wherever it goes.
+// Native caret moves (clicks, Shift+Arrows) are picked up by `followSelection`, which re-splits the text there.
+
 const INPUT_ID = "input";
 const SCROLL_MARGIN = 12;
 let inputEl = null;
@@ -20,6 +24,7 @@ function placeCaret() {
   restartCaretBlink();
 }
 
+// We set the caret ourselves, so the browser won't scroll to follow it like it does for native typing; keep it in view by hand.
 function scrollCaretIntoView() {
   const x =
     composingSpan.getBoundingClientRect().right -
@@ -53,6 +58,7 @@ function splitAt(offset) {
   block = EMPTY;
 }
 
+// Where placeCaret puts the caret; followSelection ignores it so our own moves don't reset the block.
 function isOurCaret(selection) {
   return (
     selection.anchorNode === beforeNode &&
@@ -108,6 +114,7 @@ export function deleteBlock() {
   if (document.activeElement !== inputEl) inputEl.focus();
   const { state, deletedCommitted } = backspace(block);
   if (deletedCommitted) {
+    // Spread over code points so an astral char is removed whole.
     const chars = [...beforeNode.textContent];
     chars.pop();
     beforeNode.textContent = chars.join("");
@@ -152,6 +159,7 @@ export function commitBlock() {
   if (document.activeElement === inputEl) placeCaret();
 }
 
+// Converts a native browser edit back into our three nodes, keeping the caret where the edit happened.
 function syncFromDOM() {
   const selection = window.getSelection();
   const text = inputEl.textContent;
@@ -181,6 +189,7 @@ export function prepareField() {
   inputEl.append(beforeNode, composingSpan, afterNode);
   block = EMPTY;
   inputEl.addEventListener("blur", commitBlock);
+  // Commit before a click so the caret moves from after the block.
   inputEl.addEventListener("mousedown", commitBlock);
   // Our own edits never fire `input`, so any that arrives is the browser editing natively (system IME, paste, cut, Option-combos).
   // Wait for a composition before syncing.
