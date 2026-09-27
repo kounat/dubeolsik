@@ -1,10 +1,12 @@
 import {
   commitBlock,
   deleteBlock,
+  deleteForward,
   deleteSelection,
   focusField,
   insertJamo,
   insertLiteral,
+  moveCaret,
   prepareField,
 } from "./field.js";
 import {
@@ -15,6 +17,16 @@ import {
 } from "./keyboard.js";
 
 const IME_TOGGLE_ID = "ime-toggle";
+const NAVIGATION_KEYS = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
 let imeEnabled = true;
 
 function addInputListeners() {
@@ -38,6 +50,34 @@ function addInputListeners() {
       deleteSelection()
     ) {
       event.preventDefault();
+      return;
+    }
+
+    if (
+      (event.code === "ArrowLeft" || event.code === "ArrowRight") &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      moveCaret(event.code === "ArrowLeft" ? -1 : 1)
+    ) {
+      event.preventDefault();
+      return;
+    }
+
+    if (NAVIGATION_KEYS.has(event.code)) {
+      commitBlock();
+      return;
+    }
+
+    if (
+      event.code === "Delete" &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      deleteForward();
       return;
     }
 

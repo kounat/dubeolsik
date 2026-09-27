@@ -1,25 +1,41 @@
 import { backspace, EMPTY, render, step } from "./hangul.js";
 
 const INPUT_ID = "input";
+const SCROLL_MARGIN = 12;
 let inputEl = null;
 
-let committedNode = null;
+let beforeNode = null;
 let composingSpan = null;
-let caretEl = null;
+let afterNode = null;
 let block = EMPTY;
+let nativeComposing = false;
 
-function caretToEnd() {
+function placeCaret() {
   const range = document.createRange();
-  range.setStart(committedNode, committedNode.length);
+  range.setStart(beforeNode, beforeNode.length);
   const selection = window.getSelection();
   selection.removeAllRanges();
   selection.addRange(range);
-  inputEl.scrollLeft = inputEl.scrollWidth;
+  scrollCaretIntoView();
   restartCaretBlink();
 }
 
+function scrollCaretIntoView() {
+  const x =
+    composingSpan.getBoundingClientRect().right -
+    inputEl.getBoundingClientRect().left -
+    inputEl.clientLeft;
+  if (x < SCROLL_MARGIN) {
+    inputEl.scrollLeft += x - SCROLL_MARGIN;
+  } else if (x > inputEl.clientWidth - SCROLL_MARGIN) {
+    inputEl.scrollLeft += x - (inputEl.clientWidth - SCROLL_MARGIN);
+  }
+}
+
 function restartCaretBlink() {
-  for (const animation of caretEl.getAnimations()) animation.currentTime = 0;
+  for (const animation of composingSpan.getAnimations({ subtree: true })) {
+    animation.currentTime = 0;
+  }
 }
 
 function textOffset(node, offset) {
@@ -27,6 +43,31 @@ function textOffset(node, offset) {
   range.setStart(inputEl, 0);
   range.setEnd(node, offset);
   return range.toString().length;
+}
+
+function splitAt(offset) {
+  const text = beforeNode.textContent + render(block) + afterNode.textContent;
+  beforeNode.textContent = text.slice(0, offset);
+  afterNode.textContent = text.slice(offset);
+  composingSpan.textContent = "";
+  block = EMPTY;
+}
+
+function isOurCaret(selection) {
+  return (
+    selection.anchorNode === beforeNode &&
+    selection.anchorOffset === beforeNode.length
+  );
+}
+
+function followSelection() {
+  if (nativeComposing) return;
+  const selection = window.getSelection();
+  if (selection.rangeCount === 0 || !selection.isCollapsed) return;
+  if (!inputEl.contains(selection.anchorNode)) return;
+  if (isOurCaret(selection)) return;
+  splitAt(textOffset(selection.anchorNode, selection.anchorOffset));
+  placeCaret();
 }
 
 export function deleteSelection() {
@@ -37,63 +78,93 @@ export function deleteSelection() {
 
   const start = textOffset(range.startContainer, range.startOffset);
   const end = textOffset(range.endContainer, range.endOffset);
-  const committed = committedNode.textContent;
-  if (end <= committed.length) {
-    committedNode.textContent =
-      committed.slice(0, start) + committed.slice(end);
-  } else {
-    committedNode.textContent = committed.slice(0, start);
-    composingSpan.textContent = "";
-    block = EMPTY;
-  }
-  caretToEnd();
+  const text = inputEl.textContent;
+  beforeNode.textContent = text.slice(0, start);
+  afterNode.textContent = text.slice(end);
+  composingSpan.textContent = "";
+  block = EMPTY;
+  placeCaret();
   return true;
 }
 
 export function insertJamo(jamo) {
   if (document.activeElement !== inputEl) inputEl.focus();
   const { committed, state } = step(block, jamo);
-  if (committed) committedNode.textContent += committed;
+  if (committed) beforeNode.textContent += committed;
   block = state;
   composingSpan.textContent = render(block);
-  caretToEnd();
+  placeCaret();
 }
 
 export function insertLiteral(ch) {
   if (document.activeElement !== inputEl) inputEl.focus();
-  committedNode.textContent += render(block) + ch;
+  beforeNode.textContent += render(block) + ch;
   composingSpan.textContent = "";
   block = EMPTY;
-  caretToEnd();
+  placeCaret();
 }
 
 export function deleteBlock() {
   if (document.activeElement !== inputEl) inputEl.focus();
   const { state, deletedCommitted } = backspace(block);
   if (deletedCommitted) {
-    const chars = [...committedNode.textContent];
+    const chars = [...beforeNode.textContent];
     chars.pop();
-    committedNode.textContent = chars.join("");
+    beforeNode.textContent = chars.join("");
   }
   block = state;
   composingSpan.textContent = render(block);
-  caretToEnd();
+  placeCaret();
+}
+
+export function deleteForward() {
+  if (document.activeElement !== inputEl) inputEl.focus();
+  commitBlock();
+  const chars = [...afterNode.textContent];
+  chars.shift();
+  afterNode.textContent = chars.join("");
+  placeCaret();
+}
+
+// Firefox's native move can stop at the composing span's edge (same text offset), which followSelection would undo.
+// Returns false when the browser should handle the key instead (field not focused, or a selection to collapse).
+export function moveCaret(direction) {
+  if (document.activeElement !== inputEl) return false;
+  if (!window.getSelection().isCollapsed) return false;
+  commitBlock();
+  const before = [...beforeNode.textContent];
+  const after = [...afterNode.textContent];
+  if (direction < 0 && before.length > 0) after.unshift(before.pop());
+  if (direction > 0 && after.length > 0) before.push(after.shift());
+  beforeNode.textContent = before.join("");
+  afterNode.textContent = after.join("");
+  placeCaret();
+  return true;
 }
 
 export function commitBlock() {
   const text = render(block);
-  if (text) committedNode.textContent += text;
+  // Leave the selection alone when there's nothing to commit, so Shift+arrow can keep extending it.
+  if (!text) return;
+  beforeNode.textContent += text;
   composingSpan.textContent = "";
   block = EMPTY;
-  if (document.activeElement === inputEl) caretToEnd();
+  if (document.activeElement === inputEl) placeCaret();
 }
 
 function syncFromDOM() {
-  committedNode.textContent = inputEl.textContent;
+  const selection = window.getSelection();
+  const text = inputEl.textContent;
+  const offset =
+    selection.rangeCount > 0 && inputEl.contains(selection.anchorNode)
+      ? textOffset(selection.anchorNode, selection.anchorOffset)
+      : text.length;
+  beforeNode.textContent = text.slice(0, offset);
+  afterNode.textContent = text.slice(offset);
   composingSpan.textContent = "";
   block = EMPTY;
-  inputEl.replaceChildren(committedNode, composingSpan, caretEl);
-  if (document.activeElement === inputEl) caretToEnd();
+  inputEl.replaceChildren(beforeNode, composingSpan, afterNode);
+  if (document.activeElement === inputEl) placeCaret();
 }
 
 export function focusField() {
@@ -103,23 +174,29 @@ export function focusField() {
 export function prepareField() {
   inputEl = document.getElementById(INPUT_ID);
   inputEl.textContent = "";
-  committedNode = document.createTextNode("");
+  beforeNode = document.createTextNode("");
   composingSpan = document.createElement("span");
   composingSpan.className = "composing";
-  caretEl = document.createElement("span");
-  caretEl.className = "caret";
-  caretEl.contentEditable = "false";
-  inputEl.append(committedNode, composingSpan, caretEl);
+  afterNode = document.createTextNode("");
+  inputEl.append(beforeNode, composingSpan, afterNode);
   block = EMPTY;
   inputEl.addEventListener("blur", commitBlock);
+  inputEl.addEventListener("mousedown", commitBlock);
   // Our own edits never fire `input`, so any that arrives is the browser editing natively (system IME, paste, cut, Option-combos).
   // Wait for a composition before syncing.
   inputEl.addEventListener("input", (event) => {
     if (!event.isComposing) syncFromDOM();
   });
-  inputEl.addEventListener("compositionend", syncFromDOM);
+  inputEl.addEventListener("compositionstart", () => {
+    nativeComposing = true;
+  });
+  inputEl.addEventListener("compositionend", () => {
+    nativeComposing = false;
+    syncFromDOM();
+  });
   document.addEventListener("selectionchange", () => {
     inputEl.classList.toggle("selecting", !window.getSelection().isCollapsed);
+    followSelection();
   });
   inputEl.focus();
 }

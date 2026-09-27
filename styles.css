@@ -100,6 +100,7 @@ body {
 }
 
 #input {
+  position: relative;
   width: 100%;
   height: 40px;
   padding: 6px 12px;
@@ -109,7 +110,7 @@ body {
   font-size: var(--font-size);
   line-height: 26px;
   color: var(--text);
-  white-space: nowrap;
+  white-space: pre;
   cursor: text;
   caret-color: transparent;
   outline: none;
@@ -133,13 +134,18 @@ body {
   text-underline-offset: 2px;
 }
 
-.caret {
-  display: inline-block;
+/* The caret.
+- Absolutely positioned so it's out of the text flow.
+- `top` is against #input, centering it in the 26px line box (6px padding + 3px).
+*/
+.composing::after {
+  position: absolute;
+  top: 9px;
   width: 1px;
   height: 20px;
-  margin-top: 3px;
-  vertical-align: top;
+  pointer-events: none;
   user-select: none;
+  content: "";
   background-color: var(--text);
   animation: blink 1.06s step-end infinite;
 }
@@ -151,16 +157,16 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .caret {
+  .composing::after {
     animation: none;
   }
 }
 
-#input:not(:focus) .caret {
+#input:not(:focus) .composing::after {
   display: none;
 }
 
-#input.selecting .caret {
+#input.selecting .composing::after {
   visibility: hidden;
 }
 
