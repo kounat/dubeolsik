@@ -86,6 +86,35 @@ const KEYBOARD = [
   ],
 ];
 
+// Remove noise so that the 자모 stands out.
+const BLANK_KEYS = new Set([
+  "Backquote",
+  "Digit1",
+  "Digit2",
+  "Digit3",
+  "Digit4",
+  "Digit5",
+  "Tab",
+  "Digit6",
+  "Digit7",
+  "Digit8",
+  "Digit9",
+  "Digit0",
+  "Minus",
+  "Equal",
+  "CapsLock",
+  "BracketLeft",
+  "BracketRight",
+  "Backslash",
+  "Enter",
+  "Semicolon",
+  "Quote",
+  "Comma",
+  "Period",
+  "Slash",
+]);
+const SHIFT_KEYS = new Set(["ShiftLeft", "ShiftRight"]);
+
 const KEYBOARD_DIV_ID = "keyboard";
 const keyByCode = {};
 
@@ -133,35 +162,6 @@ function clearActiveKeys() {
     key.classList.remove("active");
   }
 }
-
-// Remove noise so that the 자모 stands out.
-const BLANK_KEYS = new Set([
-  "Backquote",
-  "Digit1",
-  "Digit2",
-  "Digit3",
-  "Digit4",
-  "Digit5",
-  "Tab",
-  "Digit6",
-  "Digit7",
-  "Digit8",
-  "Digit9",
-  "Digit0",
-  "Minus",
-  "Equal",
-  "CapsLock",
-  "BracketLeft",
-  "BracketRight",
-  "Backslash",
-  "Enter",
-  "Semicolon",
-  "Quote",
-  "Comma",
-  "Period",
-  "Slash",
-]);
-const SHIFT_KEYS = new Set(["ShiftLeft", "ShiftRight"]);
 
 // Caps is remapped to switch input source and never sends a clean keyup, so I'm ignoring it.
 export const IGNORE_KEYS = new Set(["CapsLock"]);
